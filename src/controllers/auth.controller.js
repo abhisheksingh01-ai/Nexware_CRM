@@ -2,6 +2,47 @@ const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
 const bcrypt = require('bcryptjs');
 
+// Admin or tester
+
+exports.createUser = async (req, res) => {
+  try {
+    const { name, email, password, role, phone, teamHeadId } = req.body;
+
+    if (!name || !email || !password || !role) {
+      return res.status(400).json({ message: 'Missing fields' });
+    }
+
+    const exist = await User.findOne({ email });
+    if (exist) return res.status(400).json({ message: 'User already exists' });
+
+    const hashed = await bcrypt.hash(password, 10);
+
+    const user = await User.create({
+      name,
+      email,
+      password: hashed,
+      role,
+      phone,
+      teamHeadId: teamHeadId || null,
+    });
+
+    res.status(201).json({
+      message: "User created successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        phone: user.phone
+      }
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 
 // Register is working 
 
@@ -49,34 +90,28 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Missing fields' });
-    }
-    const user = await User.findOne({ email }).lean();
-    if (!user) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
+    if (!email || !password)
+      return res.status(400).json({ message: "Missing fields" });
+    const user = await User.findOne({ email });
+    if (!user)
+      return res.status(400).json({ message: "Invalid credentials" });
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
+    if (!isMatch)
+      return res.status(400).json({ message: "Invalid credentials" });
     const token = generateToken(user);
-    const userInfo = {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      phone: user.phone || null,
-      teamHeadId: user.teamHeadId || null,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-    };
-    return res.json({
-      user: userInfo,
+    res.json({
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone || null,
+        role: user.role,
+        teamHeadId: user.teamHeadId || null,
+      },
       token,
     });
   } catch (error) {
     console.error("LOGIN ERROR:", error);
-    return res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: "Server error" });
   }
 };
