@@ -3,6 +3,8 @@ const generateToken = require('../utils/generateToken');
 const bcrypt = require('bcryptjs');
 
 
+// Register is working 
+
 exports.register = async (req, res) => {
   try {
     const { name, email, password, role, phone, teamHeadId } = req.body;
@@ -42,19 +44,39 @@ exports.register = async (req, res) => {
   }
 };
 
+// Login is working
 
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ message: 'Missing fields' });
-    const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: 'Invalid credentials' });
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Missing fields' });
+    }
+    const user = await User.findOne({ email }).lean();
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
     const token = generateToken(user);
-    res.json({ user: { id: user._id, name: user.name, email: user.email, role: user.role }, token });
+    const userInfo = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      phone: user.phone || null,
+      teamHeadId: user.teamHeadId || null,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
+    return res.json({
+      user: userInfo,
+      token,
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("LOGIN ERROR:", error);
+    return res.status(500).json({ message: 'Server error' });
   }
 };
