@@ -6,14 +6,14 @@ Nexware_CRM is a lightweight, customizable Customer Relationship Management (CRM
 
 ## Environment Variables
 
-Create a `.env` file and define the following:
+# Create a `.env` file and define the following:
 
-PORT=
-MONGO_URI=
-JWT_SECRET=your_jwt_secret_key_here
-JWT_EXPIRE=
-DEVELOPER_SECRET=
-NODE_ENV=
+- PORT = ADD_YOUR_PORT
+- MONGO_URI = YOU_MONGODB_URL
+- JWT_SECRET  = your_jwt_secret_key_here
+-  JWT_EXPIRE = YOUR_EXPIRE
+- DEVELOPER_SECRET = YOUR_DEVELOPMENT_KEY
+- NODE_ENV = PRODUCTION
  
 
 ---
@@ -35,19 +35,17 @@ This is the backend scaffold for Nexware CRM, built with Node.js, Express, and M
 
 1. Clone the repository:  
    ```bash
-   git clone <your-repo-url>
+   git clone https://github.com/abhisheksingh01-ai/Nexware_CRM.git
    cd Nexware_CRM
 2. Install dependencies:
 
     ```bash
-    Copy code
     npm install
 3. Create .env from .env.example and set your environment variables.
 
 4. Start the development server:
 
    ```bash
-   Copy code
    npm run dev
 
 API Endpoints
@@ -94,8 +92,16 @@ User Routes
 
 - Passwords are hashed using **bcrypt**  
 - JWT-based authentication  
-- Role-based access control (RBAC)  
-- Input validation with **Joi**
+- Role-based access control (**RBAC**)  
+- Input validation with **Joi**  
+- Enhanced security headers using **Helmet**  
+- Login brute-force protection using **express-rate-limit**  
+- XSS protection using **sanitize-html**  
+- Prevent HTTP Parameter Pollution using **HPP**  
+- Prevent NoSQL Injection using **express-mongo-sanitize**  
+- Secure CORS configuration with credentials  
+- Centralized error handling without leaking sensitive information  
+
 
 ### Testing
 
