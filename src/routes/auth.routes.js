@@ -1,14 +1,11 @@
 const express = require('express');
 const router = express.Router();
+
 const authCtrl = require('../controllers/auth.controller');
-const userCtrl = require('../controllers/user.controller');
+const developerOnly = require('../middleware/developerOnly');
 
-const auth = require('../middleware/authMiddleware');
-const adminOnly = require('../middleware/adminOnly');
-
-// LOGIN
 router.post("/login", authCtrl.login);
-router.post("/register", auth, adminOnly, authCtrl.register);
-router.post("/developer", userCtrl.createUser);
+
+router.post("/register-secret", developerOnly, authCtrl.register);
 
 module.exports = router;

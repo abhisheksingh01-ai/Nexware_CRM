@@ -2,48 +2,6 @@ const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
 const bcrypt = require('bcryptjs');
 
-// Admin or tester
-
-exports.createUser = async (req, res) => {
-  try {
-    const { name, email, password, role, phone, teamHeadId } = req.body;
-
-    if (!name || !email || !password || !role) {
-      return res.status(400).json({ message: 'Missing fields' });
-    }
-
-    const exist = await User.findOne({ email });
-    if (exist) return res.status(400).json({ message: 'User already exists' });
-
-    const hashed = await bcrypt.hash(password, 10);
-
-    const user = await User.create({
-      name,
-      email,
-      password: hashed,
-      role,
-      phone,
-      teamHeadId: teamHeadId || null,
-    });
-
-    res.status(201).json({
-      message: "User created successfully",
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        phone: user.phone
-      }
-    });
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-
 // Register is working 
 
 exports.register = async (req, res) => {
@@ -95,6 +53,9 @@ exports.login = async (req, res) => {
     const user = await User.findOne({ email });
     if (!user)
       return res.status(400).json({ message: "Invalid credentials" });
+    if (user.status === "inactive") {
+      return res.status(403).json({ message: "Your account is inactive. Contact admin." });
+    }
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch)
       return res.status(400).json({ message: "Invalid credentials" });
@@ -107,6 +68,7 @@ exports.login = async (req, res) => {
         phone: user.phone || null,
         role: user.role,
         teamHeadId: user.teamHeadId || null,
+        status: user.status,
       },
       token,
     });
