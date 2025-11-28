@@ -1,158 +1,173 @@
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
+const { createUserValidation, updateUserValidation } = require('../validations/userValidation');
 
-// ========== CREATE USER (ADMIN ONLY) ==========
+///////////////////// CREATE USER /////////////////////
+
 exports.createUser = async (req, res) => {
   try {
-    const { name, email, password, role, phone, teamHeadId } = req.body;
-    if (!name || !email || !password || !role) {
-      return res.status(400).json({ message: "Missing required fields" });
-    }
-    const validRoles = ["admin", "subadmin", "teamhead", "agent"];
-    if (!validRoles.includes(role)) {
-      return res.status(400).json({ message: "Invalid role provided" });
-    }
-    // If user is agent → teamHeadId REQUIRED
-    if (role === "agent" && !teamHeadId) {
-      return res.status(400).json({
-        message: "teamHeadId is required when creating an agent"
-      });
-    }
-    const exist = await User.findOne({ email });
-    if (exist) {
-      return res.status(400).json({ message: "User already exists" });
-    }
-    const hashed = await bcrypt.hash(password, 10);
+    if (!req.user || req.user.role !== 'admin') return res.status(403).json({ message: 'Only admin can create users' });
+
+    const { error } = createUserValidation(req.body);
+    if (error) return res.status(400).json({ message: error.details.map(e => e.message).join(', ') });
+
+    const payload = {
+      ...req.body,
+      email: req.body.email.toLowerCase().trim(),
+      name: req.body.name.trim(),
+      phone: req.body.phone ? req.body.phone.trim() : null
+    };
+
+    const allowedRoles = ['admin', 'subadmin', 'teamhead', 'agent'];
+    if (!allowedRoles.includes(payload.role)) return res.status(400).json({ message: 'Invalid role' });
+
+    const existing = await User.findOne({ email: payload.email });
+    if (existing) return res.status(400).json({ message: 'User already exists' });
+
+    const hashed = await bcrypt.hash(payload.password, 10);
     const user = await User.create({
-      name,
-      email,
+      name: payload.name,
+      email: payload.email,
       password: hashed,
-      role,
-      phone,
-      teamHeadId: role === "agent" ? teamHeadId : null 
+      role: payload.role,
+      phone: payload.phone || null,
+      teamHeadId: payload.role === 'agent' ? payload.teamHeadId : null,
+      status: payload.status || 'active'
     });
+
     res.status(201).json({
-      message: "User created successfully",
+      message: 'User created successfully',
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
-        phone: user.phone || null,
-        teamHeadId: user.teamHeadId
+        phone: user.phone,
+        teamHeadId: user.teamHeadId || null,
+        status: user.status
       }
     });
   } catch (err) {
-    console.error("CREATE USER ERROR:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-
-
-// ========== GET USERS (RBAC LOGIC) ==========
-exports.getUsers = async (req, res) => {
-  try {
-    const user = req.user;
-    // AGENT → cannot view list
-    if (user.role === "agent") {
-      return res.status(403).json({ message: "Agents cannot view user list" });
-    }
-    let users;
-    // TEAMHEAD → only their agents
-    if (user.role === "teamhead") {
-      users = await User.find({ teamHeadId: user._id }).select("-password");
-      return res.json(users);
-    }
-    // SUBADMIN → all except admins
-    if (user.role === "subadmin") {
-      users = await User.find({ role: { $ne: "admin" } }).select("-password");
-      return res.json(users);
-    }
-    // ADMIN → view all
-    users = await User.find().select("-password");
-    res.json(users);
-  } catch (error) {
+    console.error('CREATE USER ERROR:', err);
     res.status(500).json({ message: 'Server error' });
   }
 };
 
+///////////////////// GET USERS /////////////////////
 
-// ========== UPDATE USER (ROLE-BASED RULES) ==========
+exports.getUsers = async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user) return res.status(401).json({ message: 'Unauthorized' });
+
+    if (user.role === 'agent') return res.status(403).json({ message: 'Agents cannot view user list' });
+
+    let users;
+    if (user.role === 'teamhead') {
+      users = await User.find({ teamHeadId: user._id }).select('-password');
+    } else if (user.role === 'subadmin') {
+      users = await User.find({ role: { $ne: 'admin' } }).select('-password');
+    } else {
+      users = await User.find().select('-password');
+    }
+
+    res.json(users);
+  } catch (error) {
+    console.error('GET USERS ERROR:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+///////////////////// UPDATE USER /////////////////////
+
 exports.updateUser = async (req, res) => {
   try {
     const loggedIn = req.user;
     const { id } = req.params;
-    const updates = req.body;
-    // Only admin can update others
-    if (loggedIn.role !== "admin" && loggedIn._id.toString() !== id) {
-      return res.status(403).json({ message: "You cannot update this user" });
+    if (!loggedIn) return res.status(401).json({ message: 'Unauthorized' });
+
+    const { error } = updateUserValidation(req.body);
+    if (error) return res.status(400).json({ message: error.details.map(e => e.message).join(', ') });
+
+    const updates = { ...req.body };
+
+    if (loggedIn.role !== 'admin') {
+      if (loggedIn._id.toString() !== id) return res.status(403).json({ message: 'You can only update your own password' });
+      Object.keys(updates).forEach(key => { if (key !== 'password') delete updates[key]; });
+      if (!updates.password) return res.status(400).json({ message: 'Nothing to update. Non-admin can only change password.' });
     }
-    // Only admin can change role
-    if (updates.role && loggedIn.role !== "admin") {
-      return res.status(403).json({ message: "Only admin can change roles" });
+
+    if (updates.password) updates.password = await bcrypt.hash(updates.password, 10);
+    if (updates.email) updates.email = updates.email.toLowerCase().trim();
+    if (updates.name) updates.name = updates.name.trim();
+    if (updates.phone) updates.phone = updates.phone.trim();
+
+    if (loggedIn.role === 'admin') {
+      const allowedRoles = ['admin', 'subadmin', 'teamhead', 'agent'];
+      if (updates.role && !allowedRoles.includes(updates.role)) return res.status(400).json({ message: 'Invalid role value' });
+      if (updates.teamHeadId && updates.role && updates.role !== 'agent') updates.teamHeadId = null;
+      if (updates.teamHeadId && !updates.role) {
+        const target = await User.findById(id).select('role');
+        if (target && target.role !== 'agent') updates.teamHeadId = null;
+      }
     }
-    if (updates.password) {
-      updates.password = await bcrypt.hash(updates.password, 10);
-    }
-    const user = await User.findByIdAndUpdate(id, updates, { new: true }).select("-password");
+
+    const user = await User.findByIdAndUpdate(id, updates, { new: true }).select('-password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
     res.json(user);
   } catch (error) {
+    console.error('UPDATE USER ERROR:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
 
+///////////////////// UPDATE STATUS /////////////////////
 
-// ========== UPDATE ACTIVE/INACTIVE (ADMIN ONLY) ==========
 exports.updateStatus = async (req, res) => {
   try {
-    const adminId = req.user.id;
-    const admin = await User.findById(adminId);
-    if (!admin || admin.role !== "admin") {
-      return res.status(403).json({ message: "Only admin can update status" });
-    }
+    const admin = req.user;
+    if (!admin || admin.role !== 'admin') return res.status(403).json({ message: 'Only admin can update status' });
+
     const { userId, status } = req.body;
-    if (!['active', 'inactive'].includes(status)) {
-      return res.status(400).json({ message: "Invalid status" });
+    if (!['active', 'inactive'].includes(status)) return res.status(400).json({ message: 'Invalid status value' });
+
+    const userToChange = await User.findById(userId);
+    if (!userToChange) return res.status(404).json({ message: 'User not found' });
+
+    if (userToChange.role === 'admin' && status === 'inactive') {
+      const adminCount = await User.countDocuments({ role: 'admin', status: 'active' });
+      if (adminCount <= 1) return res.status(400).json({ message: 'Cannot deactivate the last active admin' });
     }
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { status },
-      { new: true }
-    ).select("-password");
-    if (!user) return res.status(404).json({ message: "User not found" });
-    res.json({
-      message: `User is now ${status}`,
-      user,
-    });
+
+    const user = await User.findByIdAndUpdate(userId, { status }, { new: true }).select('-password');
+    res.json({ message: `User is now ${status}`, user });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
+    console.error('UPDATE STATUS ERROR:', err);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
+///////////////////// DELETE USER /////////////////////
 
-// ========== DELETE USER (ADMIN ONLY + CANNOT DELETE LAST ADMIN) ==========
 exports.deleteUser = async (req, res) => {
   try {
     const admin = req.user;
     const { id } = req.params;
-    if (admin.role !== "admin") {
-      return res.status(403).json({ message: "Only admin can delete users" });
-    }
+    if (!admin || admin.role !== 'admin') return res.status(403).json({ message: 'Only admin can delete users' });
+
     const userToDelete = await User.findById(id);
-    if (!userToDelete) return res.status(404).json({ message: "User not found" });
-    if (userToDelete.role === "admin") {
-      const adminCount = await User.countDocuments({ role: "admin" });
-      if (adminCount <= 1) {
-        return res.status(400).json({
-          message: "Cannot delete last remaining admin"
-        });
-      }
+    if (!userToDelete) return res.status(404).json({ message: 'User not found' });
+
+    if (userToDelete.role === 'admin') {
+      const adminCount = await User.countDocuments({ role: 'admin', status: 'active' });
+      if (adminCount <= 1) return res.status(400).json({ message: 'Cannot delete the last remaining active admin' });
     }
+
     await User.findByIdAndDelete(id);
-    res.json({ message: "User deleted successfully" });
+    res.json({ message: 'User deleted successfully' });
   } catch (error) {
+    console.error('DELETE USER ERROR:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
