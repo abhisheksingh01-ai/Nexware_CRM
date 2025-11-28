@@ -84,43 +84,73 @@ exports.updateUser = async (req, res) => {
   try {
     const loggedIn = req.user;
     const { id } = req.params;
-    if (!loggedIn) return res.status(401).json({ message: 'Unauthorized' });
-
-    const { error } = updateUserValidation(req.body);
-    if (error) return res.status(400).json({ message: error.details.map(e => e.message).join(', ') });
-
-    const updates = { ...req.body };
-
-    if (loggedIn.role !== 'admin') {
-      if (loggedIn._id.toString() !== id) return res.status(403).json({ message: 'You can only update your own password' });
-      Object.keys(updates).forEach(key => { if (key !== 'password') delete updates[key]; });
-      if (!updates.password) return res.status(400).json({ message: 'Nothing to update. Non-admin can only change password.' });
+    if (!loggedIn) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
     }
-
-    if (updates.password) updates.password = await bcrypt.hash(updates.password, 10);
-    if (updates.email) updates.email = updates.email.toLowerCase().trim();
-    if (updates.name) updates.name = updates.name.trim();
-    if (updates.phone) updates.phone = updates.phone.trim();
-
-    if (loggedIn.role === 'admin') {
-      const allowedRoles = ['admin', 'subadmin', 'teamhead', 'agent'];
-      if (updates.role && !allowedRoles.includes(updates.role)) return res.status(400).json({ message: 'Invalid role value' });
-      if (updates.teamHeadId && updates.role && updates.role !== 'agent') updates.teamHeadId = null;
-      if (updates.teamHeadId && !updates.role) {
-        const target = await User.findById(id).select('role');
-        if (target && target.role !== 'agent') updates.teamHeadId = null;
+    const { error } = updateUserValidation(req.body);
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        message: error.details.map(e => e.message).join(", "),
+      });
+    }
+    let updates = { ...req.body };
+    if (loggedIn.role !== "admin") {
+      if (loggedIn._id.toString() !== id) {
+        return res.status(403).json({
+          success: false,
+          message: "You can update only your own profile",
+        });
+      }
+      const allowedFields = ["name", "phone", "password"];
+      Object.keys(updates).forEach(key => {
+        if (!allowedFields.includes(key)) delete updates[key];
+      });
+      if (
+        !updates.name &&
+        !updates.phone &&
+        !updates.password
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Non-admin can only update: name, phone, password",
+        });
       }
     }
+    if (loggedIn.role === "admin") {
+      const allowedRoles = ["admin", "subadmin", "teamhead", "agent"];
 
-    const user = await User.findByIdAndUpdate(id, updates, { new: true }).select('-password');
-    if (!user) return res.status(404).json({ message: 'User not found' });
-
-    res.json(user);
+      if (updates.role && !allowedRoles.includes(updates.role)) {
+        return res.status(400).json({ success: false, message: "Invalid role value" });
+      }
+      if (updates.role && updates.role !== "agent") {
+        updates.teamHeadId = null;
+      }
+    }
+    if (updates.password) {
+      updates.password = await bcrypt.hash(updates.password, 10);
+    }
+    if (updates.name) updates.name = updates.name.trim();
+    if (updates.phone) updates.phone = updates.phone.trim();
+    if (updates.email) delete updates.email;
+    const user = await User.findByIdAndUpdate(id, updates, {
+      new: true,
+    }).select("-password");
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    return res.json({
+      success: true,
+      message: "User updated successfully",
+      data: user,
+    });
   } catch (error) {
-    console.error('UPDATE USER ERROR:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("UPDATE USER ERROR:", error);
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 };
+
 
 ///////////////////// UPDATE STATUS /////////////////////
 
