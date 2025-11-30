@@ -4,11 +4,25 @@ const userCtrl = require('../controllers/user.controller');
 const auth = require('../middleware/authMiddleware');
 const role = require('../middleware/roleMiddleware');
 
+// Create a new user (admin only)
 router.post('/', auth, role(['admin']), userCtrl.createUser);
-router.get('/', auth, role(['admin', 'subadmin', 'teamhead']), userCtrl.getUsers);
-router.put('/status', auth, role(['admin']), userCtrl.updateStatus);
-router.put('/:id', auth, userCtrl.updateUser);
-router.delete('/:id', auth, role(['admin']), userCtrl.deleteUser);
 
+// Get all users (admin, subadmin, teamhead)
+router.get('/', auth, role(['admin', 'subadmin', 'teamhead']), userCtrl.getUsers);
+
+// Update status of a user (admin only)
+router.put('/status', auth, role(['admin']), userCtrl.updateStatus);
+
+// Get logged-in user details
+router.get('/me', auth, userCtrl.getMyDetails);
+
+// Admin or subadmin update any user
+router.put('/adminUpdate', auth, userCtrl.anyUserUpdate);
+
+// Logged-in user updates own profile
+router.put('/update', auth, userCtrl.updateUser);
+
+// Delete a user (admin only)
+router.delete('/delete', auth, role(['admin']), userCtrl.deleteUser);
 
 module.exports = router;
