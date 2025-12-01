@@ -205,7 +205,7 @@ exports.updateStatus = async (req, res) => {
 exports.deleteUser = async (req, res) => {
   try {
     const admin = req.user;
-    const { id } = req.body; // using body instead of params
+    const { id } = req.body; 
 
     if (!admin || admin.role !== "admin")
       return res.status(403).json({ message: "Only admin can delete users" });
@@ -224,5 +224,57 @@ exports.deleteUser = async (req, res) => {
   } catch (error) {
     console.error("DELETE USER ERROR:", error);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+///////////////////// ADMIN CHANGE ANY USER PASSWORD /////////////////////
+exports.changePasswordAlluser = async (req, res) => {
+  try {
+    const admin = req.user;
+    const { id, newPassword } = req.body;
+
+    // Only admin can change password for any user
+    if (!admin || admin.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Only admin can change user passwords",
+      });
+    }
+
+    if (!id || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID and new password are required",
+      });
+    }
+
+    // Check if user exists
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Save new password
+    user.password = hashedPassword;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: "Password updated successfully",
+    });
+
+  } catch (error) {
+    console.error("CHANGE PASSWORD ERROR:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
   }
 };

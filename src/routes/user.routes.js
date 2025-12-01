@@ -12,6 +12,7 @@ router.get('/', auth, role(['admin', 'subadmin', 'teamhead']), userCtrl.getUsers
 
 // Update status of a user (admin only)
 router.put('/status', auth, role(['admin']), userCtrl.updateStatus);
+router.put('/password', auth, role(['admin']), userCtrl.changePasswordAlluser);
 
 // Get logged-in user details
 router.get('/me', auth, userCtrl.getMyDetails);
