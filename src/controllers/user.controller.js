@@ -138,26 +138,41 @@ exports.updateUser = async (req, res) => {
   try {
     const userId = req.user._id;
     const updates = { ...req.body };
+
     if (!userId) {
       return res.status(401).json({ message: "Unauthorized" });
     }
+
+    // Allowed fields
     const allowedFields = ["name", "email", "phone"];
-    Object.keys(upsets).forEach((key) => {
+
+    // Remove any fields not allowed
+    Object.keys(updates).forEach((key) => {
       if (!allowedFields.includes(key)) delete updates[key];
     });
+
+    // If no valid fields provided
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({
         message: "You can only update: name, email, phone",
       });
     }
+
+    // Clean data
     if (updates.name) updates.name = updates.name.trim();
     if (updates.email) updates.email = updates.email.trim().toLowerCase();
     if (updates.phone) updates.phone = updates.phone.trim();
+
+    // Update user
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       updates,
       { new: true }
     ).select("-password");
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
     res.json({
       success: true,
@@ -166,10 +181,11 @@ exports.updateUser = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("UPDATE USER ERROR:", error);
-    res.status(500).json({ message: "Server error" });
+    console.error("UPDATE USER ERROR →", error);  // 🔥 VERY IMPORTANT
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
 
 
 ///////////////////// UPDATE STATUS /////////////////////
