@@ -136,41 +136,41 @@ exports.anyUserUpdate = async (req, res) => {
 ///////////////////// UPDATE OWN PROFILE /////////////////////
 exports.updateUser = async (req, res) => {
   try {
-    const loggedIn = req.user;
+    const userId = req.user._id;
     const updates = { ...req.body };
-
-    if (!loggedIn) return res.status(401).json({ message: "Unauthorized" });
-
-    const { error } = updateUserValidation(updates);
-    if (error)
-      return res
-        .status(400)
-        .json({ message: error.details.map((e) => e.message).join(", ") });
-
-    // Non-admin can update only themselves
-    if (loggedIn.role !== "admin") {
-      const allowedFields = ["name", "phone", "password"];
-      Object.keys(updates).forEach((key) => {
-        if (!allowedFields.includes(key)) delete updates[key];
-      });
-      if (!updates.name && !updates.phone && !updates.password)
-        return res.status(400).json({
-          message: "You can only update: name, phone, password",
-        });
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
     }
-
-    if (updates.password) updates.password = await bcrypt.hash(updates.password, 10);
+    const allowedFields = ["name", "email", "phone"];
+    Object.keys(upsets).forEach((key) => {
+      if (!allowedFields.includes(key)) delete updates[key];
+    });
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({
+        message: "You can only update: name, email, phone",
+      });
+    }
     if (updates.name) updates.name = updates.name.trim();
+    if (updates.email) updates.email = updates.email.trim().toLowerCase();
     if (updates.phone) updates.phone = updates.phone.trim();
-    if (updates.email) delete updates.email;
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      updates,
+      { new: true }
+    ).select("-password");
 
-    const user = await User.findByIdAndUpdate(loggedIn._id, updates, { new: true }).select("-password");
-    res.json({ success: true, message: "Profile updated successfully", data: user });
+    res.json({
+      success: true,
+      message: "Profile updated successfully",
+      data: updatedUser,
+    });
+
   } catch (error) {
     console.error("UPDATE USER ERROR:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 ///////////////////// UPDATE STATUS /////////////////////
 exports.updateStatus = async (req, res) => {
