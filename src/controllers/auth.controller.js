@@ -1,11 +1,12 @@
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const generateToken = require('../utils/generateToken');
+const loginLogger = require("../middleware/loginLogger");
 const { registerValidation, loginValidation } = require('../validations/userValidation');
 
 const pick = (obj, keys) => keys.reduce((a, k) => { if (obj[k] !== undefined) a[k] = obj[k]; return a; }, {});
 
-///////////////////// REGISTER (SECRET / PUBLIC RESTRICTED) /////////////////////
+///////////////////// REGISTER /////////////////////
 exports.register = async (req, res) => {
   try {
     const { error } = registerValidation(req.body);
@@ -62,15 +63,17 @@ exports.login = async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ message: 'Invalid credentials' });
 
-    if (user.status === 'inactive') {
-      return res.status(403).json({ message: 'Your account is inactive. Contact admin.' });
-    }
+    if (user.status === 'inactive') return res.status(403).json({ message: 'Your account is inactive. Contact admin.' });
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
+    if (!isMatch) {
+      await loginLogger(req, user, "failed");
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
+
+    await loginLogger(req, user, "success");
 
     const token = generateToken(user);
-
     res.json({
       user: {
         id: user._id,
@@ -88,3 +91,26 @@ exports.login = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+
+///////////////////// GET LOGIN LOGS /////////////////////
+exports.getMyLastLogin = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("lastLogin name email role");
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    res.json({
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      },
+      lastLogin: user.lastLogin
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+

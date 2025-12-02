@@ -87,3 +87,6 @@ exports.loginValidation = (data) => {
     password: Joi.string().min(8).required(),
   }).validate(data, { abortEarly: false });
 };
+
+
+
