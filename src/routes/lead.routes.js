@@ -1,12 +1,51 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const leadCtrl = require('../controllers/lead.controller');
-const auth = require('../middleware/authMiddleware');
-const role = require('../middleware/roleMiddleware');
+const leadController = require("../controllers/lead.controller");
+const auth = require("../middleware/authMiddleware");
+const role = require("../middleware/roleMiddleware"); 
+const validate = require("../middleware/validate.middleware");
+const { createLeadSchema, updateLeadSchema } = require("../validations/lead.validation");
 
-router.post('/', auth, role(['admin','subadmin','teamhead']), leadCtrl.createLead);
-router.get('/', auth, role(['admin','subadmin','teamhead','agent']), leadCtrl.getLeads);
-router.get('/:id', auth, role(['admin','subadmin','teamhead','agent']), leadCtrl.getLead);
-router.put('/:id', auth, role(['admin','subadmin','teamhead','agent']), leadCtrl.updateLead);
+// Create lead (Admin, SubAdmin, TeamHead, Agent)
+router.post(
+  "/", 
+  auth, 
+  role(["admin", "subadmin", "teamhead", "agent"]),
+  validate(createLeadSchema), 
+  leadController.createLead
+);
+
+// Get all leads (all roles)
+router.get(
+  "/leads-list", 
+  auth, 
+  role(["admin", "subadmin", "teamhead", "agent"]),
+  leadController.getLeads
+);
+
+// Get lead details (id via query)
+router.get(
+  "/lead-details", 
+  auth, 
+  role(["admin", "subadmin", "teamhead", "agent"]),
+  leadController.getLeadById
+);
+
+// Update lead (status/remarks, Admin/SubAdmin/Agent)
+router.put(
+  "/updateLead", 
+  auth, 
+  role(["admin", "subadmin", "teamhead", "agent"]), 
+  // validate(updateLeadSchema), 
+  leadController.updateLead
+);
+
+// Delete lead (Admin only)
+router.delete(
+  "/deleteLead", 
+  auth, 
+  role(["admin"]), 
+  leadController.deleteLead
+);
 
 module.exports = router;
