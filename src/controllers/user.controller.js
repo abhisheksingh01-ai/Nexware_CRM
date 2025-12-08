@@ -105,20 +105,16 @@ exports.anyUserUpdate = async (req, res) => {
     if (!loggedIn)
       return res.status(401).json({ message: "Unauthorized" });
 
-    // ONLY ADMIN CAN UPDATE ANY USER
     if (loggedIn.role !== "admin") {
-      return res
-        .status(403)
-        .json({ message: "Only admin can update any user" });
+      return res.status(403).json({ message: "Only admin can update any user" });
     }
 
-    // Fields NOT allowed to update
-    if (updates.email) delete updates.email;
-    if (updates.lastLogin) delete updates.lastLogin;
-    if (updates.createdAt) delete updates.createdAt;
-    if (updates.updatedAt) delete updates.updatedAt;
+    // Not allowed fields
+    ["email", "lastLogin", "createdAt", "updatedAt"].forEach((field) => {
+      if (updates[field]) delete updates[field];
+    });
 
-    // Prevent last active admin from being set inactive
+    // Protect last active admin
     if (updates.status === "inactive") {
       const targetUser = await User.findById(userId);
 
@@ -129,21 +125,25 @@ exports.anyUserUpdate = async (req, res) => {
         });
 
         if (activeAdmins <= 1) {
-          return res
-            .status(400)
-            .json({ message: "Cannot deactivate the last active admin" });
+          return res.status(400).json({ message: "Cannot deactivate the last active admin" });
         }
       }
     }
 
-    // Hash password if updating
+    // Hash password
     if (updates.password) {
       updates.password = await bcrypt.hash(updates.password, 10);
     }
 
-    // Clean string fields
     if (updates.name) updates.name = updates.name.trim();
     if (updates.phone) updates.phone = updates.phone.trim();
+
+    // ⭐ FIX: Remove invalid empty strings to avoid ObjectId casting errors
+    Object.keys(updates).forEach(key => {
+      if (updates[key] === "" || updates[key] === null) {
+        delete updates[key];
+      }
+    });
 
     const updatedUser = await User.findByIdAndUpdate(
       userId,
@@ -159,6 +159,7 @@ exports.anyUserUpdate = async (req, res) => {
       message: "User updated successfully",
       data: updatedUser,
     });
+
   } catch (error) {
     console.error("ANY USER UPDATE ERROR:", error);
     res.status(500).json({ message: "Server error" });
