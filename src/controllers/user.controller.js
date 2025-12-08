@@ -102,36 +102,69 @@ exports.anyUserUpdate = async (req, res) => {
     const { userId, updates } = req.body;
     const loggedIn = req.user;
 
-    if (!loggedIn) return res.status(401).json({ message: "Unauthorized" });
+    if (!loggedIn)
+      return res.status(401).json({ message: "Unauthorized" });
 
-    if (loggedIn.role !== "admin" && loggedIn.role !== "subadmin")
+    // ONLY ADMIN CAN UPDATE ANY USER
+    if (loggedIn.role !== "admin") {
       return res
         .status(403)
-        .json({ message: "Only admin or subadmin can update any user" });
+        .json({ message: "Only admin can update any user" });
+    }
 
-    const { error } = updateUserValidation(updates);
-    if (error)
-      return res
-        .status(400)
-        .json({ message: error.details.map((e) => e.message).join(", ") });
+    // Fields NOT allowed to update
+    if (updates.email) delete updates.email;
+    if (updates.lastLogin) delete updates.lastLogin;
+    if (updates.createdAt) delete updates.createdAt;
+    if (updates.updatedAt) delete updates.updatedAt;
 
+    // Prevent last active admin from being set inactive
+    if (updates.status === "inactive") {
+      const targetUser = await User.findById(userId);
+
+      if (targetUser && targetUser.role === "admin") {
+        const activeAdmins = await User.countDocuments({
+          role: "admin",
+          status: "active",
+        });
+
+        if (activeAdmins <= 1) {
+          return res
+            .status(400)
+            .json({ message: "Cannot deactivate the last active admin" });
+        }
+      }
+    }
+
+    // Hash password if updating
     if (updates.password) {
       updates.password = await bcrypt.hash(updates.password, 10);
     }
+
+    // Clean string fields
     if (updates.name) updates.name = updates.name.trim();
     if (updates.phone) updates.phone = updates.phone.trim();
-    if (updates.email) delete updates.email;
 
-    const user = await User.findByIdAndUpdate(userId, updates, { new: true }).select("-password");
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      updates,
+      { new: true }
+    ).select("-password");
 
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!updatedUser)
+      return res.status(404).json({ message: "User not found" });
 
-    res.json({ success: true, message: "User updated successfully", data: user });
+    return res.json({
+      success: true,
+      message: "User updated successfully",
+      data: updatedUser,
+    });
   } catch (error) {
     console.error("ANY USER UPDATE ERROR:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 ///////////////////// UPDATE OWN PROFILE /////////////////////
 exports.updateUser = async (req, res) => {

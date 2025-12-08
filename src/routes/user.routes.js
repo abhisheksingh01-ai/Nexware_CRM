@@ -17,7 +17,7 @@ router.put('/password', auth, role(['admin']), userCtrl.changePasswordAlluser);
 // Get logged-in user details
 router.get('/me', auth, userCtrl.getMyDetails);
 
-// Admin or subadmin update any user
+// Only Admin update any user
 router.put('/adminUpdate', auth, userCtrl.anyUserUpdate);
 
 // Logged-in user updates own profile
