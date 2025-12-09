@@ -59,7 +59,7 @@ exports.getLeads = async (req, res) => {
 // Get lead by ID
 exports.getLeadById = async (req, res) => {
   try {
-    let { leadId } = req.query; // ⬅️ Changed from req.body to req.query
+    let { leadId } = req.query; 
 
     if (!leadId) {
       return res.status(400).json({
@@ -93,6 +93,7 @@ exports.getLeadById = async (req, res) => {
       assignedTo: lead.assignedTo,
       createdBy: lead.createdBy,
       createdAt: lead.createdAt,
+      updatedAt: lead.updatedAt,
     };
 
     res.status(200).json({
