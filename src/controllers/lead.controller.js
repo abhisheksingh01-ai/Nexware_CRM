@@ -59,16 +59,29 @@ exports.getLeads = async (req, res) => {
 // Get lead by ID
 exports.getLeadById = async (req, res) => {
   try {
-    const { leadId } = req.body;
-    if (!leadId) return res.status(400).json({ success: false, message: "Lead ID required" });
+    let { leadId } = req.query; // ⬅️ Changed from req.body to req.query
+
+    if (!leadId) {
+      return res.status(400).json({
+        success: false,
+        message: "Lead ID required",
+      });
+    }
+
+    // Trim and clean ID if needed
+    leadId = leadId.toString().trim().replace(/"/g, "");
 
     const lead = await Lead.findById(leadId)
       .populate("assignedTo", "name email")
       .populate("createdBy", "name email");
 
-    if (!lead) return res.status(404).json({ success: false, message: "Lead not found" });
+    if (!lead) {
+      return res.status(404).json({
+        success: false,
+        message: "Lead not found",
+      });
+    }
 
-    // Return full details for lead modal
     const leadDetails = {
       name: lead.name,
       mobile: lead.phone,
@@ -82,10 +95,16 @@ exports.getLeadById = async (req, res) => {
       createdAt: lead.createdAt,
     };
 
-    res.status(200).json({ success: true, data: leadDetails });
+    res.status(200).json({
+      success: true,
+      data: leadDetails,
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: "Server Error" });
+    console.error("GET LEAD BY ID ERROR →", error);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+    });
   }
 };
 
