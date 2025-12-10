@@ -63,25 +63,30 @@ exports.getUsers = async (req, res) => {
   try {
     const user = req.user;
     if (!user) return res.status(401).json({ message: "Unauthorized" });
-
-    if (user.role === "agent")
-      return res.status(403).json({ message: "Agents cannot view user list" });
-
     let users;
-    if (user.role === "teamhead") {
-      users = await User.find({ teamHeadId: user._id }).select("-password");
-    } else if (user.role === "subadmin") {
-      users = await User.find({ role: { $ne: "admin" } }).select("-password");
-    } else {
-      users = await User.find().select("-password");
+    if (user.role === "agent") {
+      return res.status(403).json({ message: "Agents cannot view user list" });
     }
-
+    if (user.role === "teamhead") {
+      users = await User.find({ teamHeadId: user._id })
+        .select("-password")
+        .populate("teamHeadId", "name email");
+    } else if (user.role === "subadmin") {
+      users = await User.find({ role: { $ne: "admin" } })
+        .select("-password")
+        .populate("teamHeadId", "name email");
+    } else {
+      users = await User.find()
+        .select("-password")
+        .populate("teamHeadId", "name email");
+    }
     res.json(users);
   } catch (error) {
     console.error("GET USERS ERROR:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 ///////////////////// GET MY DETAILS /////////////////////
 exports.getMyDetails = async (req, res) => {
