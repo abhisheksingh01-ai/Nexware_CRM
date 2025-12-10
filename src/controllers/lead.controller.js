@@ -114,15 +114,12 @@ exports.updateLead = async (req, res) => {
   try {
     const { id } = req.body;
     if (!id) return res.status(400).json({ success: false, message: "Lead ID required" });
-
     const { error } = updateLeadSchema.validate(req.body, { abortEarly: false });
     if (error) {
       const messages = error.details.map(d => d.message);
       return res.status(400).json({ success: false, errors: messages });
     }
-
     const { status, remarks, assignedTo, source, name, phone, service, address } = req.body;
-
     const updatedLead = await Lead.findByIdAndUpdate(
       id,
       { status, remarks, assignedTo, source, name, phone, service, address, updatedAt: Date.now() },
@@ -132,7 +129,6 @@ exports.updateLead = async (req, res) => {
       .populate("createdBy", "name email");
 
     if (!updatedLead) return res.status(404).json({ success: false, message: "Lead not found" });
-
     res.status(200).json({ success: true, message: "Lead updated successfully", data: updatedLead });
   } catch (error) {
     console.error("Update Lead Error:", error);
