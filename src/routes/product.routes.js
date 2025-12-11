@@ -4,6 +4,7 @@ const router = express.Router();
 const productCtrl = require("../controllers/product.controller");
 const auth = require("../middleware/authMiddleware");
 const role = require("../middleware/roleMiddleware");
+const upload = require("../config/multer");
 
 // ----------------------------------------------
 // CREATE PRODUCT (admin only)
@@ -12,11 +13,12 @@ router.post(
   "/adminCreate",
   auth,
   role(["admin"]),
+  upload.array("images", 5),        
   productCtrl.createProduct
 );
 
 // ----------------------------------------------
-// GET ALL PRODUCTS (admin, subadmin, teamhead, agent)
+// GET ALL PRODUCTS
 // ----------------------------------------------
 router.get(
   "/getAll",
@@ -26,8 +28,7 @@ router.get(
 );
 
 // ----------------------------------------------
-// GET SINGLE PRODUCT (all roles)
-// Send ID in body: { id: "productId" }
+// GET SINGLE PRODUCT
 // ----------------------------------------------
 router.post(
   "/getOne",
@@ -37,19 +38,18 @@ router.post(
 );
 
 // ----------------------------------------------
-// UPDATE PRODUCT (admin, subadmin)
-// Send ID in body
+// UPDATE PRODUCT
 // ----------------------------------------------
 router.put(
   "/adminUpdate",
   auth,
   role(["admin", "subadmin"]),
+  upload.array("images", 5),        // <== Multer added
   productCtrl.updateProduct
 );
 
 // ----------------------------------------------
-// DELETE PRODUCT (admin only)
-// Send ID in body
+// DELETE PRODUCT
 // ----------------------------------------------
 router.delete(
   "/adminDelete",
