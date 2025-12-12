@@ -16,7 +16,7 @@ const createLeadSchema = Joi.object({
 
 // Schema for updating a lead
 const updateLeadSchema = Joi.object({
-  id: Joi.string().required(), 
+  id: Joi.string().required(),
   status: Joi.string()
     .valid("Ring", "Follow Up", "Sale Done", "Not Interested", "Switch Off", "Incoming")
     .optional(),
@@ -27,7 +27,8 @@ const updateLeadSchema = Joi.object({
   phone: Joi.string().pattern(/^[0-9]{10}$/).optional(),
   service: Joi.string().min(2).max(100).optional(),
   address: Joi.string().max(250).optional()
-}).unknown(false); 
+}).unknown(false);
+
 
 
 module.exports = { createLeadSchema, updateLeadSchema };
