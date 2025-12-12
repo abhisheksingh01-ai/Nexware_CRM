@@ -16,11 +16,23 @@ const orderSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      validate: {
+        validator: function (v) {
+          return /^\d{6}$/.test(v);
+        },
+        message: (props) => `${props.value} is not a valid pincode!`,
+      },
     },
     phone: {
       type: String,
       required: true,
       trim: true,
+      validate: {
+        validator: function (v) {
+          return /^[6-9]\d{9}$/.test(v);
+        },
+        message: (props) => `${props.value} is not a valid phone number!`,
+      },
     },
     productId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -37,22 +49,11 @@ const orderSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
-    totalAmount: {
+    totalAmount: {         // <-- added this field
       type: Number,
-      required: true,
       min: 0,
     },
     agentId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-    teamHeadId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
-    createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
@@ -61,14 +62,6 @@ const orderSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: null,
-    },
-    courierPartner: {
-      type: String,
-      trim: true,
-      default: null,
-    },
-    expectedDelivery: {
-      type: Date,
     },
     orderStatus: {
       type: String,
@@ -97,26 +90,18 @@ const orderSchema = new mongoose.Schema(
       enum: ["COD", "Online"],
       default: "COD",
     },
-    transactionId: {
-      type: String,
-      default: null,
-    },
     remarks: {
       type: String,
       trim: true,
     },
-    trackingLogs: [
-      {
-        status: String,         
-        message: String,         
-        timestamp: {
-          type: Date,
-          default: Date.now,
-        },
-      },
-    ],
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
+
+orderSchema.pre("save", async function () {
+  this.totalAmount = this.priceAtOrderTime * this.quantity;
+});
 
 module.exports = mongoose.model("Order", orderSchema);

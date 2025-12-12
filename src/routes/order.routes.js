@@ -1,88 +1,51 @@
 const express = require("express");
 const router = express.Router();
-
-const orderCtrl = require("../controllers/order.controller");
+const orderController = require("../controllers/order.controller");
 const auth = require("../middleware/authMiddleware");
 const role = require("../middleware/roleMiddleware");
+const validate = require("../middleware/validate.middleware");
+const { createOrderSchema, updateOrderSchema } = require("../validations/order.validation");
 
-// ----------------------------------------------
-// CREATE ORDER (agent + teamhead + admin)
-// ----------------------------------------------
+// Create order (Admin, SubAdmin, TeamHead, Agent)
 router.post(
-  "/create",
+  "/",
   auth,
   role(["admin", "subadmin", "teamhead", "agent"]),
-  orderCtrl.createOrder
+  validate(createOrderSchema),
+  orderController.createOrder
 );
 
-// ----------------------------------------------
-// GET ALL ORDERS
-// ----------------------------------------------
-router.post(
-  "/getAll",
+// Get all orders
+router.get(
+  "/orders-list",
   auth,
   role(["admin", "subadmin", "teamhead", "agent"]),
-  orderCtrl.getAllOrders
+  orderController.getOrders
 );
 
-// ----------------------------------------------
-// GET SINGLE ORDER
-// ----------------------------------------------
-router.post(
-  "/getOne",
+// Get order details by ID
+router.get(
+  "/order-details",
   auth,
   role(["admin", "subadmin", "teamhead", "agent"]),
-  orderCtrl.getOrderById
+  orderController.getOrderById
 );
 
-// ----------------------------------------------
-// UPDATE ORDER (admin + subadmin only)
-// ----------------------------------------------
+// Update order
 router.put(
-  "/update",
-  auth,
-  role(["admin", "subadmin"]),
-  orderCtrl.updateOrder
-);
-
-// ----------------------------------------------
-// UPDATE ORDER STATUS
-// ----------------------------------------------
-router.put(
-  "/updateStatus",
+  "/update-order",
   auth,
   role(["admin", "subadmin", "teamhead", "agent"]),
-  orderCtrl.updateOrderStatus
+  validate(updateOrderSchema),
+  orderController.updateOrder
 );
 
-// ----------------------------------------------
-// UPDATE PAYMENT STATUS
-// ----------------------------------------------
-router.put(
-  "/updatePayment",
-  auth,
-  role(["admin", "subadmin"]),
-  orderCtrl.updatePaymentStatus
-);
-
-// ----------------------------------------------
-// UPDATE COURIER DETAILS
-// ----------------------------------------------
-router.put(
-  "/updateCourier",
-  auth,
-  role(["admin", "subadmin"]),
-  orderCtrl.updateCourierDetails
-);
-
-// ----------------------------------------------
-// DELETE ORDER (admin only)
-// ----------------------------------------------
+// Delete order
 router.delete(
-  "/delete",
+  "/delete-order",
   auth,
   role(["admin"]),
-  orderCtrl.deleteOrder
+  orderController.deleteOrder
 );
 
 module.exports = router;
