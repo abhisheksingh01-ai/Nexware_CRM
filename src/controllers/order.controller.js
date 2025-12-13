@@ -10,11 +10,8 @@ exports.createOrder = async (req, res) => {
       const messages = error.details.map(d => d.message);
       return res.status(400).json({ success: false, errors: messages });
     }
-
-    // totalAmount will be calculated automatically in pre("save")
     const order = new Order(req.body);
     const savedOrder = await order.save();
-
     res.status(201).json({ success: true, data: savedOrder });
   } catch (err) {
     console.error("ORDER SAVE ERROR →", err);

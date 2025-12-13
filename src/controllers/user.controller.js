@@ -333,3 +333,28 @@ exports.changePasswordAlluser = async (req, res) => {
     });
   }
 };
+
+///////////////////// GET ALL USERS (ANY AUTH USER) /////////////////////
+exports.getAllUsers = async (req, res) => {
+  try {
+    const loggedIn = req.user;
+
+    if (!loggedIn) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const users = await User.find()
+      .select("-password")
+      .populate("teamHeadId", "name email");
+
+    res.json({
+      success: true,
+      count: users.length,
+      data: users,
+    });
+
+  } catch (error) {
+    console.error("GET USERS ERROR:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};

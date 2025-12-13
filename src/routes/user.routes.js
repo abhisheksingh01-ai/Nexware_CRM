@@ -9,6 +9,7 @@ router.post('/', auth, role(['admin']), userCtrl.createUser);
 
 // Get all users (admin, subadmin, teamhead)
 router.get('/', auth, role(['admin', 'subadmin', 'teamhead']), userCtrl.getUsers);
+router.get('/getalluser', auth, userCtrl.getAllUsers);
 
 // Update status of a user (admin only)
 router.put('/status', auth, role(['admin']), userCtrl.updateStatus);
