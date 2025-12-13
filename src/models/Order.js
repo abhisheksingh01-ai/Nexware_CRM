@@ -4,59 +4,55 @@ const orderSchema = new mongoose.Schema(
   {
     customerName: {
       type: String,
-      required: true,
+      required: [true, "Customer name is required"],
       trim: true,
     },
     address: {
       type: String,
-      required: true,
+      required: [true, "Address is required"],
       trim: true,
     },
     pincode: {
       type: String,
-      required: true,
+      required: [true, "Pincode is required"],
       trim: true,
       validate: {
-        validator: function (v) {
-          return /^\d{6}$/.test(v);
-        },
-        message: (props) => `${props.value} is not a valid pincode!`,
+        validator: (v) => /^\d{6}$/.test(v),
+        message: (props) => `${props.value} is not a valid 6-digit pincode`,
       },
     },
     phone: {
       type: String,
-      required: true,
+      required: [true, "Phone number is required"],
       trim: true,
       validate: {
-        validator: function (v) {
-          return /^[6-9]\d{9}$/.test(v);
-        },
-        message: (props) => `${props.value} is not a valid phone number!`,
+        validator: (v) => /^[6-9]\d{9}$/.test(v),
+        message: (props) => `${props.value} is not a valid 10-digit Indian phone number`,
       },
     },
     productId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Product",
-      required: true,
+      required: [true, "Product reference is required"],
     },
     quantity: {
       type: Number,
       default: 1,
-      min: 1,
+      min: [1, "Quantity cannot be less than 1"],
     },
     priceAtOrderTime: {
       type: Number,
-      required: true,
-      min: 0,
+      required: [true, "Price is required"],
+      min: [0, "Price cannot be negative"],
     },
-    totalAmount: {         // <-- added this field
+    totalAmount: {
       type: Number,
-      min: 0,
+      min: [0, "Total amount cannot be negative"],
     },
     agentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: [true, "Agent reference is required"],
     },
     awb: {
       type: String,
@@ -87,8 +83,18 @@ const orderSchema = new mongoose.Schema(
     },
     paymentMode: {
       type: String,
-      enum: ["COD", "Online"],
-      default: "COD",
+      enum: ["COD", "Partial Payment", "Full Payment"],
+      default: "Partial Payment",
+    },
+    depositedAmount: {
+      type: Number,
+      default: 0,
+      min: [0, "Deposited amount cannot be negative"],
+    },
+    remainingAmount: {
+      type: Number,
+      default: 0,
+      min: [0, "Remaining amount cannot be negative"],
     },
     remarks: {
       type: String,
@@ -96,12 +102,18 @@ const orderSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: true,
+    timestamps: true, 
   }
 );
 
-orderSchema.pre("save", async function () {
+orderSchema.pre("save", function(){
   this.totalAmount = this.priceAtOrderTime * this.quantity;
+
+  if (this.paymentMode !== "Partial Payment") {
+    this.depositedAmount = 0;
+    this.remainingAmount = 0;
+  }
 });
+
 
 module.exports = mongoose.model("Order", orderSchema);
